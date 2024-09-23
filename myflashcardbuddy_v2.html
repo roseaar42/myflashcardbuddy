@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MyFlashcardBuddy - Your Personal Study Assistant</title>
+    <meta name="description" content="MyFlashcardBuddy: An interactive flashcard app to enhance your learning experience. Create, study, and master your subjects with ease.">
+    <link rel="canonical" href="https://www.myflashcardbuddy.com">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #e6e6e6;
+        }
+        #flashcard {
+            width: 450px;
+            height: 300px;
+            background-color: rgba(30, 30, 30, 0.9);
+            border-radius: 12px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+            display: flex;
+            flex-direction: column;
+            font-size: 24px;
+            text-align: center;
+            margin-bottom: 20px;
+            cursor: pointer;
+            overflow: hidden;
+        }
+        .card-header {
+            background-color: rgba(51, 51, 51, 0.8);
+            padding: 12px 20px;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+        }
+        .window-controls {
+            display: flex;
+            gap: 8px;
+        }
+        .control {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+        .red { background-color: #ff5f56; }
+        .yellow { background-color: #ffbd2e; }
+        .green { background-color: #27c93f; }
+        .card-content {
+            flex-grow: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        #instructions {
+            margin-bottom: 15px;
+            background-color: rgba(255, 255, 255, 0.1);
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 14px;
+            width: 100%;
+            max-width: 450px;
+            box-sizing: border-box;
+            text-align: center;
+        }
+        #deckSelector {
+            color: #fff;
+            background-color: rgba(255, 255, 255, 0.1);
+            border: none;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 14px;
+            cursor: pointer;
+            width: auto;
+            min-width: 150px;
+            text-align: center;
+            text-align-last: center;
+        }
+        #deckSelector option {
+            background-color: rgba(30, 30, 30, 0.9);
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+    <div id="flashcard" tabindex="0">
+        <div class="card-header">
+            <div class="window-controls">
+                <div class="control red"></div>
+                <div class="control yellow"></div>
+                <div class="control green"></div>
+            </div>
+        </div>
+        <div class="card-content"></div>
+    </div>
+    <div id="instructions">
+        Use spacebar to flip and proceed, left/right arrows to navigate
+    </div>
+    <select id="deckSelector">
+        <option value="">Select a deck</option>
+        <option value="math1">Math - Basic</option>
+        <option value="math2">Math - Intermediate</option>
+        <option value="counting1">Counting - Basic</option>
+        <option value="counting2">Counting - Advanced</option>
+    </select>
+
+    <script>
+        const flashcardElement = document.getElementById('flashcard');
+        const cardContentElement = flashcardElement.querySelector('.card-content');
+        const deckSelector = document.getElementById('deckSelector');
+        let flashcards = [];
+        let currentCardIndex = 0;
+        let showingQuestion = true;
+
+        // Default flashcards embedded in the HTML
+        const defaultTsvData = `What is the capital of France?\tParis
+What is 2 + 2?\t4
+Who wrote "Romeo and Juliet"?\tWilliam Shakespeare`;
+
+        function parseTSV(data) {
+            return data.split('\n').map(line => {
+                const [question, answer] = line.split('\t');
+                return { question, answer };
+            });
+        }
+
+        function displayCard() {
+            if (flashcards.length === 0) {
+                cardContentElement.textContent = "No flashcards loaded";
+                return;
+            }
+            const card = flashcards[currentCardIndex];
+            cardContentElement.textContent = showingQuestion ? card.question : card.answer;
+        }
+
+        function nextCard() {
+            currentCardIndex = (currentCardIndex + 1) % flashcards.length;
+            showingQuestion = true;
+            displayCard();
+        }
+
+        function previousCard() {
+            currentCardIndex = (currentCardIndex - 1 + flashcards.length) % flashcards.length;
+            showingQuestion = true;
+            displayCard();
+        }
+
+        function flipCard() {
+            showingQuestion = !showingQuestion;
+            displayCard();
+        }
+
+        function flipAndProceed() {
+            if (showingQuestion) {
+                flipCard();
+            } else {
+                nextCard();
+            }
+        }
+
+        function focusOnFlashcard() {
+            flashcardElement.focus();
+        }
+
+        document.addEventListener('keydown', (event) => {
+            switch(event.code) {
+                case 'Space':
+                    flipAndProceed();
+                    break;
+                case 'ArrowRight':
+                    nextCard();
+                    break;
+                case 'ArrowLeft':
+                    previousCard();
+                    break;
+            }
+        });
+
+        deckSelector.addEventListener('change', function() {
+            const selectedDeck = this.value;
+            if (selectedDeck) {
+                fetch(`/decks/${selectedDeck}.tsv`)
+                    .then(response => response.text())
+                    .then(data => {
+                        flashcards = parseTSV(data);
+                        currentCardIndex = 0;
+                        showingQuestion = true;
+                        displayCard();
+                        focusOnFlashcard();
+                    })
+                    .catch(error => console.error('Error loading deck:', error));
+            }
+        });
+
+        flashcardElement.addEventListener('click', focusOnFlashcard);
+
+        // Load default flashcards
+        flashcards = parseTSV(defaultTsvData);
+        displayCard();
+        focusOnFlashcard();
+    </script>
+</body>
+</html>
